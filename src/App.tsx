@@ -102,50 +102,54 @@ function NFTDisplay() {
     const fetchAllNFTs = async () => {
       const suiClient = new SuiClient({ url: 'https://fullnode.testnet.sui.io' });
       
-      if (!currentAccount) {
-        console.log('Wallet not connected');
-        return;
-      }
-
       try {
-        // Query all ReputationNFT objects
-        const { data: objects } = await suiClient.getOwnedObjects({
-          owner: currentAccount.address,
-          filter: {
-            MoveModule: {
-              package: '0xacf24e393ccfcb4be583a48b990643dc6dd46ed4dbc2a0420e0f6672f3d3abd5',
-              module: 'reputation_package'
-            }
-          },
+        // Get all NFTs from the registry
+        const registry = await suiClient.getObject({
+          id: import.meta.env.VITE_REGISTRY_ID,
           options: {
             showContent: true,
             showDisplay: true,
             showOwner: true,
-            showType: true,
           }
         });
 
-        console.log('Found NFTs:', objects);
+        console.log('Registry:', registry);
 
-        const nftData = objects
-          .filter(obj => obj.data?.type?.includes('::ReputationNFT'))
-          .map(obj => {
-            const content = (obj.data?.content as any)?.fields || {};
-            const owner = obj.data?.owner as any;
-            
-            return {
-              id: obj.data?.objectId || '',
-              name: content.name || 'Unnamed',
-              description: content.description || '',
-              imageUrl: content.image_url || '',
-              reputationPoints: content.reputation_points || 0,
-              suiName: owner?.AddressOwner ? 
-                `${owner.AddressOwner.slice(0, 6)}...${owner.AddressOwner.slice(-4)}` : 
-                'Unknown'
-            };
+        // Get all entries from the registry's user_nfts table
+        const { data: dynamicFields } = await suiClient.getDynamicFields({
+          parentId: import.meta.env.VITE_REGISTRY_ID,
+        });
+
+        console.log('Dynamic fields:', dynamicFields);
+
+        // Fetch all NFTs
+        const nftPromises = dynamicFields.map(async (field) => {
+          const nft = await suiClient.getObject({
+            id: field.objectId,
+            options: {
+              showContent: true,
+              showDisplay: true,
+              showOwner: true,
+            }
           });
 
-        console.log('Processed NFT data:', nftData);
+          const content = (nft.data?.content as any)?.fields || {};
+          const owner = nft.data?.owner as any;
+          
+          return {
+            id: field.objectId,
+            name: content.name || 'Unnamed',
+            description: content.description || '',
+            imageUrl: content.image_url || '',
+            reputationPoints: content.reputation_points || 0,
+            suiName: owner?.AddressOwner ? 
+              `${owner.AddressOwner.slice(0, 6)}...${owner.AddressOwner.slice(-4)}` : 
+              'Unknown'
+          };
+        });
+
+        const nftData = await Promise.all(nftPromises);
+        console.log('All NFTs:', nftData);
         setNfts(nftData);
       } catch (error) {
         console.error('Error fetching NFTs:', error);
