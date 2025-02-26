@@ -18,9 +18,9 @@ function MintNFTForm() {
     try {
       const tx = new TransactionBlock();
       tx.moveCall({
-        target: `0xacf24e393ccfcb4be583a48b990643dc6dd46ed4dbc2a0420e0f6672f3d3abd5::reputation_package::mint_and_register`,
+        target: `${import.meta.env.VITE_PACKAGE_ID}::reputation_package::mint_and_register`,
         arguments: [
-          tx.object('0x8144ea36100b84e327539ef0bf70255e4706018aa94b693ff8618f05e1916caa'), // registry object
+          tx.object(import.meta.env.VITE_REGISTRY_ID),
           tx.pure(formData.name),
           tx.pure(formData.description),
           tx.pure(formData.imageUrl),
